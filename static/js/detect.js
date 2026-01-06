@@ -16,11 +16,58 @@ function switchTab(tab) {
     document.getElementById(tab + '-tab').classList.add('active');
     event.target.classList.add('active');
     
-    // Stop webcam if switching away
+    // Stop webcam if switching away from webcam tab
     if (tab !== 'webcam' && stream) {
+        console.log('Switching tab - stopping webcam');
         stopWebcam();
     }
 }
+
+// Cleanup function to ensure webcam is stopped
+function ensureWebcamStopped() {
+    if (stream) {
+        console.log('Ensuring webcam is stopped...');
+        stream.getTracks().forEach(track => {
+            if (track.readyState === 'live') {
+                track.stop();
+                console.log('Forced stop on live track:', track.kind);
+            }
+        });
+        stream = null;
+    }
+}
+
+// Initialize page cleanup handlers
+window.addEventListener('DOMContentLoaded', function() {
+    // Stop webcam when navigating away using browser navigation
+    window.addEventListener('beforeunload', ensureWebcamStopped);
+    
+    // Stop webcam when page is hidden (tab switch, minimize, etc)
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden && stream) {
+            console.log('Page visibility changed to hidden - stopping webcam');
+            ensureWebcamStopped();
+        }
+    });
+    
+    // Mobile browsers compatibility
+    window.addEventListener('pagehide', ensureWebcamStopped);
+    
+    // History navigation
+    window.addEventListener('popstate', ensureWebcamStopped);
+    
+    // Detect if user clicks on any navigation link
+    document.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Check if it's not just a hash change
+            const href = this.getAttribute('href');
+            if (href && !href.startsWith('#') && stream) {
+                console.log('Navigation link clicked - stopping webcam');
+                ensureWebcamStopped();
+            }
+        });
+    });
+});
 
 // File upload handling
 const fileInput = document.getElementById('fileInput');
@@ -331,17 +378,60 @@ async function startWebcam() {
 
 function stopWebcam() {
     if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        // Stop all video tracks
+        stream.getTracks().forEach(track => {
+            track.stop();
+            console.log('Webcam track stopped:', track.kind);
+        });
         stream = null;
     }
     
     const webcam = document.getElementById('webcam');
-    webcam.srcObject = null;
+    if (webcam) {
+        webcam.srcObject = null;
+    }
     
-    document.getElementById('startWebcam').style.display = 'inline-flex';
-    document.getElementById('captureBtn').style.display = 'none';
-    document.getElementById('stopWebcam').style.display = 'none';
+    // Update button visibility
+    const startBtn = document.getElementById('startWebcam');
+    const captureBtn = document.getElementById('captureBtn');
+    const stopBtn = document.getElementById('stopWebcam');
+    
+    if (startBtn) startBtn.style.display = 'inline-flex';
+    if (captureBtn) captureBtn.style.display = 'none';
+    if (stopBtn) stopBtn.style.display = 'none';
 }
+
+// Auto-stop webcam when leaving page or switching tabs
+window.addEventListener('beforeunload', function(e) {
+    if (stream) {
+        console.log('Page unload detected - stopping webcam');
+        stopWebcam();
+    }
+});
+
+// Stop webcam when tab becomes hidden
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden && stream) {
+        console.log('Tab hidden - stopping webcam');
+        stopWebcam();
+    }
+});
+
+// Stop webcam on page hide (for mobile browsers)
+window.addEventListener('pagehide', function(e) {
+    if (stream) {
+        console.log('Page hide detected - stopping webcam');
+        stopWebcam();
+    }
+});
+
+// Stop webcam when navigating away (popstate)
+window.addEventListener('popstate', function(e) {
+    if (stream) {
+        console.log('Navigation detected - stopping webcam');
+        stopWebcam();
+    }
+});
 
 function captureImage() {
     const webcam = document.getElementById('webcam');

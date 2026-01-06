@@ -57,6 +57,11 @@ document.addEventListener('DOMContentLoaded', function() {
             link.addEventListener('click', function() {
                 hamburger.classList.remove('active');
                 navMenu.classList.remove('active');
+                
+                // Stop webcam if exists when navigating
+                if (typeof stopWebcam === 'function') {
+                    stopWebcam();
+                }
             });
         });
         
@@ -71,6 +76,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Add click listener to all navigation links to stop webcam
+    document.querySelectorAll('a[href]').forEach(link => {
+        link.addEventListener('click', function(e) {
+            const href = this.getAttribute('href');
+            // Stop webcam for non-hash navigations
+            if (href && !href.startsWith('#') && typeof stopWebcam === 'function') {
+                stopWebcam();
+            }
+        });
+    });
+    
+    // Add global cleanup for webcam on page unload
+    window.addEventListener('beforeunload', function() {
+        if (typeof stopWebcam === 'function') {
+            stopWebcam();
+        }
+    });
 });
 
 // Form validation
